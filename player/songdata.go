@@ -13,6 +13,7 @@ import (
 type Song struct {
 	File   *os.File
 	Path   string
+	Length time.Duration
 	Title  string
 	Artist string
 	Lyrics string
@@ -24,29 +25,42 @@ const (
 )
 
 type Player struct {
-	playingSong *os.File
+	PlayingSong *Song
 	state       bool
 	volume      int
 	streamer    beep.StreamSeekCloser
+	format      beep.Format
 }
 
 func (p Player) NewPlayer() Player {
 	return Player{}
 }
 
-func (p *Player) Play(f *os.File) {
+func (p Player) GetPosition() time.Duration {
+	speaker.Lock()
+	position := p.format.SampleRate.D(p.streamer.Position())
+	speaker.Unlock()
+	return position
+}
+
+func (p Player) GetLength() time.Duration {
+	return p.PlayingSong.Length
+}
+
+func (p *Player) Play(s *Song) {
 	speaker.Clear()
 
-	p.playingSong = f
+	p.PlayingSong = s
 	p.state = Playing
-	streamer, format, err := mp3.Decode(f)
+	streamer, format, err := mp3.Decode(s.File)
+	p.PlayingSong.Length = format.SampleRate.D(streamer.Len())
 	speaker.Lock()
 	streamer.Seek(0)
 	speaker.Unlock()
 	if err != nil {
 		log.Fatal(err)
 	}
-	p.streamer = streamer
+	p.streamer, p.format = streamer, format
 	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
 	speaker.Play(beep.Seq(streamer))
 }

@@ -4,6 +4,7 @@ go 1.23.2
 
 require (
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
+	github.com/gdamore/tcell v1.4.0
 	github.com/gopxl/beep v1.4.1
 	github.com/rivo/tview v0.0.0-20241103174730-c76f7879f592
 )
