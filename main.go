@@ -1,14 +1,81 @@
 package main
 
 import (
-	"fmt"
-	"time"
+	"log"
 
-	"github.com/rivo/tview"
+	// "github.com/charmbracelet/bubbles/list"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
+	"hichamlamine.github.io/sonik/list"
 	"hichamlamine.github.io/sonik/player"
 	"hichamlamine.github.io/sonik/utils"
-	// "hichamlamine.github.io/sonik/model"
 )
+
+type sessionState uint
+
+const (
+	listView sessionState = iota
+	progressView
+)
+
+var (
+	helpStyle         = lipgloss.NewStyle().Foreground(lipgloss.Color(241))
+	focusedModelStyle = lipgloss.
+				NewStyle().
+				Width(15).
+				Height(5).
+				Align(lipgloss.Center, lipgloss.Center).
+				BorderStyle(lipgloss.NormalBorder()).
+				BorderBackground(lipgloss.Color(69))
+	modelStyle = lipgloss.
+			NewStyle().
+			Width(15).
+			Height(5).
+			Align(lipgloss.Center, lipgloss.Center).
+			BorderStyle(lipgloss.HiddenBorder())
+)
+
+type model struct {
+	// state sessionState
+	list list.Model
+}
+
+func newModel() model {
+	var items []list.Item
+	songs := utils.LoadSongs()
+	for _, song := range songs {
+		items = append(items, list.Item{Title: song.Title, Desc: song.Artist})
+	}
+	listModel := list.NewModel(items)
+	listModel.SetSelectedFunc(func(selectedItem list.SelectedItem) {
+		p := player.Player{}
+		p.Play(&songs[selectedItem.Index])
+	})
+	return model{list: listModel}
+}
+
+func (m model) Init() tea.Cmd {
+	return nil
+}
+
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+	case tea.KeyMsg:
+		switch msg.String() {
+		case "ctrl+c", "q":
+			return m, tea.Quit
+		}
+	}
+	newListModel, cmd := m.list.Update(msg)
+	m.list = newListModel
+	return m, cmd
+}
+
+func (m model) View() string {
+	var s string
+	s += m.list.View()
+	return s
+}
 
 const (
 	playIcon     string = ""
@@ -18,53 +85,9 @@ const (
 )
 
 func main() {
-	app := tview.NewApplication()
+	p := tea.NewProgram(newModel(), tea.WithAltScreen())
 
-	player := player.Player{}
-
-	songs := utils.LoadSongs()
-
-	list := tview.NewList()
-	list.SetBorder(true)
-	list.SetTitle("Songs")
-	for _, song := range songs {
-		list.AddItem(song.Title, song.Artist, ' ', nil)
+	if _, err := p.Run(); err != nil {
+		log.Fatal(err)
 	}
-	list.SetSelectedFunc(func(i int, s1, s2 string, r rune) {
-		for _, song := range songs {
-			if song.Title == s1 {
-				go player.Play(&song)
-			}
-		}
-	})
-
-	var position time.Duration
-	var length time.Duration
-	progressView := tview.NewTextView().SetChangedFunc(func() { app.Draw() })
-	progressView.SetBorder(true)
-	go func() {
-		for {
-			select {
-			case <-time.After(time.Second):
-				if player.PlayingSong == nil {
-					position, length = 0, 0
-				} else {
-					progressView.Clear()
-					position, length = player.GetPosition(), player.GetLength()
-					progressText := fmt.Sprintf("\n%v/%v\n%s  %s  %s", position.Round(time.Second), length.Round(time.Second), previousIcon, playIcon, nextIcon)
-					progressView.Write([]byte(progressText))
-				}
-			}
-		}
-	}()
-
-	flex := tview.NewFlex().
-		SetDirection(tview.FlexRow).
-		AddItem(list, 0, 1, true).
-		AddItem(progressView.SetTextAlign(tview.AlignCenter), 5, 1, false)
-
-	if err := app.SetRoot(flex, true).SetFocus(list).Run(); err != nil {
-		panic(err)
-	}
-
 }

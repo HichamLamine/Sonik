@@ -55,12 +55,15 @@ func (p *Player) Play(s *Song) {
 	streamer, format, err := mp3.Decode(s.File)
 	p.PlayingSong.Length = format.SampleRate.D(streamer.Len())
 	speaker.Lock()
-	streamer.Seek(0)
+	_ = streamer.Seek(0)
 	speaker.Unlock()
 	if err != nil {
 		log.Fatal(err)
 	}
 	p.streamer, p.format = streamer, format
-	speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	err = speaker.Init(format.SampleRate, format.SampleRate.N(time.Second/10))
+	if err != nil {
+		log.Fatal(err)
+	}
 	speaker.Play(beep.Seq(streamer))
 }
