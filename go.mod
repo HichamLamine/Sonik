@@ -15,8 +15,8 @@ require (
 	github.com/aymanbagabas/go-osc52/v2 v2.0.1 // indirect
 	github.com/charmbracelet/x/ansi v0.4.5 // indirect
 	github.com/charmbracelet/x/term v0.2.1 // indirect
-	github.com/ebitengine/oto/v3 v3.1.0 // indirect
-	github.com/ebitengine/purego v0.7.1 // indirect
+	github.com/ebitengine/oto/v3 v3.3.1 // indirect
+	github.com/ebitengine/purego v0.8.1 // indirect
 	github.com/erikgeiser/coninput v0.0.0-20211004153227-1c3628e74d0f // indirect
 	github.com/hajimehoshi/go-mp3 v0.3.4 // indirect
 	github.com/lucasb-eyer/go-colorful v1.2.0 // indirect

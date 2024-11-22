@@ -41,7 +41,7 @@ func LoadSongs() []player.Song {
 					Title:  m.Title(),
 					Artist: m.Artist(),
 					Lyrics: m.Lyrics(),
-                    File: f,
+					File:   f,
 				})
 			}
 

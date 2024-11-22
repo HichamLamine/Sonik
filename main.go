@@ -20,7 +20,7 @@ type model struct {
 	styles *styles.AppStyles
 
 	songs []player.Song
-	p     player.Player
+	p     player.State
 }
 
 type item struct {
@@ -38,17 +38,22 @@ func newModel() model {
 		items = append(items, item{title: song.Title, desc: song.Artist})
 	}
 
+	// s := player.State{}
+
 	listModel := list.New(items, list.NewDefaultDelegate(), 0, 0)
 	listModel.SetShowTitle(false)
 	listModel.SetShowHelp(false)
-    listModel.SetShowStatusBar(false)
+	listModel.SetShowStatusBar(false)
 
 	appStyles := styles.NewAppStyles()
 	// listModel.SetSelectedFunc(func(selectedItem list.SelectedItem) {
 	// 	p := player.Player{}
 	// 	p.Play(&songs[selectedItem.Index])
 	// })
-	p := player.Player{}
+	p, err := player.NewPlayer()
+	if err != nil {
+		log.Fatal(err)
+	}
 	return model{list: listModel, songs: songs, p: p, styles: &appStyles}
 }
 
@@ -64,12 +69,19 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "enter":
 			if m.list.FilterState() != list.Filtering {
-				m.p.Play(&m.songs[m.list.Index()])
+                file := m.songs[m.list.Index()].File
+				m.p.Play(file)
 			}
+        case " ":
+            m.p.TogglePause()
+        case "<":
+            m.p.DecreaseVolume()
+        case ">":
+            m.p.IncreaseVolume()
 		}
 	case tea.WindowSizeMsg:
 		w, h := msg.Width, msg.Height
-		m.list.SetSize(w - 2, h-2)
+		m.list.SetSize(w-2, h-2)
 		m.styles.ListStyle = m.styles.ListStyle.Width(m.list.Width()).Height(m.list.Height())
 	}
 	newListModel, cmd := m.list.Update(msg)
@@ -80,7 +92,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m model) View() string {
 	var s string
 	styledList := m.styles.ListStyle.Render(m.list.View())
-    // progress := m.progress.view()
+	// progress := m.progress.view()
 	s = styledList
 	return s
 }
