@@ -9,11 +9,3 @@ var (
 			// Padding(1, 2).
 			Width(100)
 )
-
-type AppStyles struct {
-	ListStyle lipgloss.Style
-}
-
-func NewAppStyles() AppStyles {
-	return AppStyles{ListStyle: ListStyle}
-}

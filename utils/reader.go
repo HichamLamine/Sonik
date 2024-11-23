@@ -24,7 +24,7 @@ func LoadSongs() []player.Song {
 	var songsData []player.Song
 	for _, file := range songsdir {
 		fileExtension := file.Name()[len(file.Name())-3:]
-		if !file.IsDir() && fileExtension != "zip" {
+		if !file.IsDir() && (fileExtension == "mp3" || fileExtension == "wav") {
 			fileDir := filepath.Join(musicdir, file.Name())
 			f, err := os.Open(fileDir)
 			if err != nil {

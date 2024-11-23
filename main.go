@@ -5,8 +5,10 @@ import (
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 
 	// "hichamlamine.github.io/sonik/player"
+	"hichamlamine.github.io/sonik/info"
 	"hichamlamine.github.io/sonik/player"
 	"hichamlamine.github.io/sonik/styles"
 	"hichamlamine.github.io/sonik/utils"
@@ -16,11 +18,10 @@ type model struct {
 	// state sessionState
 	// pages []page.Model
 	list list.Model
-
-	styles *styles.AppStyles
+	info info.Model
 
 	songs []player.Song
-	p     player.State
+	p     *player.State
 }
 
 type item struct {
@@ -38,23 +39,19 @@ func newModel() model {
 		items = append(items, item{title: song.Title, desc: song.Artist})
 	}
 
-	// s := player.State{}
-
 	listModel := list.New(items, list.NewDefaultDelegate(), 0, 0)
 	listModel.SetShowTitle(false)
 	listModel.SetShowHelp(false)
 	listModel.SetShowStatusBar(false)
 
-	appStyles := styles.NewAppStyles()
-	// listModel.SetSelectedFunc(func(selectedItem list.SelectedItem) {
-	// 	p := player.Player{}
-	// 	p.Play(&songs[selectedItem.Index])
-	// })
 	p, err := player.NewPlayer()
 	if err != nil {
 		log.Fatal(err)
 	}
-	return model{list: listModel, songs: songs, p: p, styles: &appStyles}
+
+	infoModel := info.New(&p)
+
+	return model{list: listModel, info: infoModel, songs: songs, p: &p}
 }
 
 func (m model) Init() tea.Cmd {
@@ -62,6 +59,7 @@ func (m model) Init() tea.Cmd {
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -69,31 +67,36 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "enter":
 			if m.list.FilterState() != list.Filtering {
-                file := m.songs[m.list.Index()].File
-				m.p.Play(file)
+				song := m.songs[m.list.Index()]
+				m.p.Play(&song)
 			}
-        case " ":
-            m.p.TogglePause()
-        case "<":
-            m.p.DecreaseVolume()
-        case ">":
-            m.p.IncreaseVolume()
+		case " ":
+			m.p.TogglePause()
+		case "<":
+			m.p.DecreaseVolume()
+		case ">":
+			m.p.IncreaseVolume()
 		}
 	case tea.WindowSizeMsg:
 		w, h := msg.Width, msg.Height
-		m.list.SetSize(w-2, h-2)
-		m.styles.ListStyle = m.styles.ListStyle.Width(m.list.Width()).Height(m.list.Height())
+		infoHeight := lipgloss.Height(m.info.View())
+		m.list.SetSize(w-2, h-2-infoHeight)
+		styles.ListStyle = styles.ListStyle.Width(m.list.Width()).Height(m.list.Height() - infoHeight)
 	}
-	newListModel, cmd := m.list.Update(msg)
+	newListModel, listCmd := m.list.Update(msg)
+	newInfoModel, infoCmd := m.info.Update(msg)
+	cmds = append(cmds, listCmd, infoCmd)
 	m.list = newListModel
-	return m, cmd
+	m.info = newInfoModel
+	return m, tea.Batch(cmds...)
 }
 
 func (m model) View() string {
 	var s string
-	styledList := m.styles.ListStyle.Render(m.list.View())
+	styledList := styles.ListStyle.Render(m.list.View())
+	playerInfo := m.info.View()
 	// progress := m.progress.view()
-	s = styledList
+	s = lipgloss.JoinVertical(lipgloss.Left, styledList, playerInfo)
 	return s
 }
 
