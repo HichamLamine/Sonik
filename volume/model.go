@@ -43,10 +43,10 @@ const (
 func (m Model) renderProgress() string {
 	var s string
 	filledPortion := strings.Repeat(heavyLine, int(float64(m.progressLength)*m.volume))
-	filledPortion = styles.VolumeFilled.Render(filledPortion)
+	filledPortion = styles.BarFilled.Render(filledPortion)
 
 	emptyPortion := strings.Repeat(lightLine, int(m.progressLength)-int(float64(m.progressLength)*m.volume))
-	emptyPortion = styles.VolumeEmpty.Render(emptyPortion)
+	emptyPortion = styles.BarEmpty.Render(emptyPortion)
 
 	s = lipgloss.JoinHorizontal(lipgloss.Center, filledPortion, emptyPortion)
 	return s

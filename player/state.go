@@ -19,12 +19,13 @@ type State struct {
 	currentCtrl     *beep.Ctrl
 	currentVolume   *effects.Volume
 	PlayingSong     *Song
+	universalVolume float64
 }
 
 func NewPlayer() (State, error) {
 	sampleRate := beep.SampleRate(48000)
 	err := speaker.Init(sampleRate, sampleRate.N(time.Second/10))
-	return State{sampleRate: sampleRate}, err
+	return State{sampleRate: sampleRate, universalVolume: 0.5}, err
 }
 
 func decodeAudio(f *os.File) (beep.StreamSeekCloser, beep.Format, error) {
@@ -72,7 +73,11 @@ func (s *State) Play(song *Song) {
 	s.currentStreamer = streamer
 	s.currentCtrl = ctrl
 	s.currentVolume = volume
-	s.SetVolume(-3)
+
+	s.SetVolume(Denormalize(s.universalVolume))
+	if s.universalVolume == 0 {
+		s.ToggleMute(true)
+	}
 
 	speaker.Play(volume)
 }
@@ -96,6 +101,7 @@ func (s *State) IncreaseVolume() {
 		}
 		speaker.Unlock()
 	}
+	s.universalVolume = s.Normalized()
 }
 
 func (s *State) DecreaseVolume() {
@@ -111,6 +117,7 @@ func (s *State) DecreaseVolume() {
 		}
 		speaker.Unlock()
 	}
+	s.universalVolume = s.Normalized()
 }
 
 func (s *State) SetVolume(v float64) {
@@ -130,11 +137,23 @@ func (s *State) ToggleMute(b bool) {
 }
 
 func (s State) GetPosition() time.Duration {
-	return s.sampleRate.D(s.currentStreamer.Position())
+	if s.currentStreamer == nil {
+		return time.Second * 0
+	} else {
+		return s.sampleRate.D(s.currentStreamer.Position())
+	}
+}
+
+func (s State) GetPositionPercent() float64 {
+	return float64(s.GetPosition()) / float64(s.GetLen())
 }
 
 func (s State) GetLen() time.Duration {
-	return s.sampleRate.D(s.currentStreamer.Len())
+	if s.currentStreamer == nil {
+		return time.Second * 0
+	} else {
+		return s.sampleRate.D(s.currentStreamer.Len())
+	}
 }
 
 func (s State) IsPaused() bool {
@@ -145,7 +164,6 @@ func (s State) IsPaused() bool {
 }
 
 func (s State) Normalized() float64 {
-	// from -2.8 to 2.8
 	min := -6.7
 	midPoint := -3.
 	max := -2.7
@@ -171,11 +189,5 @@ func Denormalize(v float64) float64 {
 }
 
 func (s State) GetVolume() float64 {
-	if s.currentVolume == nil {
-		return 0.5
-	}
-
-	volume := s.Normalized()
-
-	return volume
+	return s.universalVolume
 }

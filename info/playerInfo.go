@@ -18,16 +18,24 @@ type Model struct {
 	width int
 }
 
+func (m Model) Init() tea.Cmd {
+	return progress.TickProgress(m.player.GetPosition())
+}
+
 // p pointer
 func New(p *player.State) Model {
 	// init progress
 	// if p == nil {
-	// 	v = volume.New(0.5)
-	// } else {
 	v := volume.New(p.GetVolume())
-	// }
-	return Model{player: p, volume: v, width: 0}
+	progress := progress.New(p.GetPosition(), p.GetLen())
+	return Model{player: p, volume: v, width: 0, progress: progress}
 }
+
+// func(m Model) UpdateProgress() tea.Cmd {
+//     return func() tea.Msg {
+//
+//     }
+// }
 
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
@@ -36,16 +44,23 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		switch msg.String() {
 		// case " ":
 		// 	m.player.TogglePause()
+		case "enter":
+			return m, progress.UpdateLength(m.player.GetLen())
 		case "<", ">":
 			return m, volume.UpdateVolume(m.player.GetVolume())
 		}
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
+	case progress.ProgressTickMsg:
+		cmds = append(cmds, progress.TickProgress(m.player.GetPosition()))
 	}
 
 	volume, cmd := m.volume.Update(msg)
-
 	m.volume = volume
+	cmds = append(cmds, cmd)
+
+	progress, cmd := m.progress.Update(msg)
+	m.progress = progress
 	cmds = append(cmds, cmd)
 
 	return m, tea.Batch(cmds...)
@@ -72,14 +87,18 @@ func (m Model) View() string {
 	}
 
 	songName := lipgloss.JoinHorizontal(lipgloss.Center, icon, "  ", title)
-    songName = styles.InfoTitle.Render(songName)
+	songName = styles.InfoTitle.Render(songName)
 
 	volume = m.volume.View()
 
 	volume = lipgloss.PlaceHorizontal(m.width-styles.Info.GetHorizontalFrameSize()-lipgloss.Width(songName), lipgloss.Right, volume)
 	// fmt.Println(styles.Info.GetHorizontalFrameSize())
 
-	s = lipgloss.JoinHorizontal(lipgloss.Center, songName, volume)
+	progress := m.progress.View()
+
+	s = progress
+
+	s = lipgloss.JoinVertical(lipgloss.Center, s, lipgloss.JoinHorizontal(lipgloss.Center, songName, volume))
 
 	s = styles.Info.Render(s)
 

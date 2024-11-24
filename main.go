@@ -1,7 +1,9 @@
 package main
 
 import (
+	"fmt"
 	"log"
+	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
@@ -55,7 +57,7 @@ func newModel() model {
 }
 
 func (m model) Init() tea.Cmd {
-	return nil
+	return m.info.Init()
 }
 
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -66,7 +68,15 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "enter":
-			if m.list.FilterState() != list.Filtering {
+			// fmt.Println(m.list.SelectedItem())
+			if m.list.FilterState() == list.FilterApplied {
+				for _, song := range m.songs {
+					if fmt.Sprintf("{%s}", strings.Join([]string{song.Title, song.Artist}, " ")) == fmt.Sprintln(m.list.SelectedItem()) {
+						m.p.Play(&song)
+					}
+				}
+			}
+			if m.list.FilterState() == list.Unfiltered {
 				song := m.songs[m.list.Index()]
 				m.p.Play(&song)
 			}
@@ -77,6 +87,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case ">":
 			m.p.IncreaseVolume()
 		}
+
 	case tea.WindowSizeMsg:
 		w, h := msg.Width, msg.Height
 		infoHeight := lipgloss.Height(m.info.View())
