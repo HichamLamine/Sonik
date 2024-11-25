@@ -176,6 +176,8 @@ func (s State) Normalized() float64 {
 	}
 }
 
+// (-4.8 -> 1.8) => 0.0 -> 1.0 (-4.8, -2.1) -> (0, 0.5), (-2.1 -> 1.8) -> (0.5, 1.0)
+
 func Denormalize(v float64) float64 {
 	min := -6.7
 	midPoint := -3.
@@ -190,4 +192,32 @@ func Denormalize(v float64) float64 {
 
 func (s State) GetVolume() float64 {
 	return s.universalVolume
+}
+
+func (s State) SeekForward() {
+	if s.currentStreamer != nil {
+		speaker.Lock()
+		position := s.GetPosition()
+		newPosition := s.sampleRate.N(position + 5*time.Second)
+		if newPosition <= s.currentStreamer.Len() {
+			_ = s.currentStreamer.Seek(newPosition)
+		} else {
+			_ = s.currentStreamer.Seek(s.currentStreamer.Len())
+		}
+		speaker.Unlock()
+	}
+}
+
+func (s State) SeekBackward() {
+	if s.currentCtrl.Streamer != nil {
+		speaker.Lock()
+		position := s.GetPosition()
+		newPosition := s.sampleRate.N(position - 5*time.Second)
+		if newPosition >= 0 {
+			_ = s.currentStreamer.Seek(newPosition)
+		} else {
+			_ = s.currentStreamer.Seek(0)
+		}
+		speaker.Unlock()
+	}
 }

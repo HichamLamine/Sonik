@@ -48,6 +48,10 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 			return m, progress.UpdateLength(m.player.GetLen())
 		case "<", ">":
 			return m, volume.UpdateVolume(m.player.GetVolume())
+		case "L":
+			m.player.SeekForward()
+		case "H":
+			m.player.SeekBackward()
 		}
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
@@ -94,11 +98,11 @@ func (m Model) View() string {
 	volume = lipgloss.PlaceHorizontal(m.width-styles.Info.GetHorizontalFrameSize()-lipgloss.Width(songName), lipgloss.Right, volume)
 	// fmt.Println(styles.Info.GetHorizontalFrameSize())
 
+	s = lipgloss.JoinHorizontal(lipgloss.Center, songName, volume)
+
 	progress := m.progress.View()
 
-	s = progress
-
-	s = lipgloss.JoinVertical(lipgloss.Center, s, lipgloss.JoinHorizontal(lipgloss.Center, songName, volume))
+	s = lipgloss.JoinVertical(lipgloss.Left, s, progress)
 
 	s = styles.Info.Render(s)
 
