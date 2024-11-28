@@ -28,8 +28,16 @@ type Model struct {
 	songs []player.Song
 	p     *player.State
 
+	focusedModel int
+
+	lyricsWidth   int
 	width, height int
 }
+
+const (
+	List = iota
+	Lyrics
+)
 
 type item struct {
 	title, desc string
@@ -63,11 +71,23 @@ func newModel() Model {
 
 	lyricsModel := lyrics.NewModel()
 
-	return Model{list: listModel, info: infoModel, songs: songs, p: &p, lyrics: lyricsModel}
+	return Model{list: listModel, info: infoModel, songs: songs, p: &p, lyrics: lyricsModel, lyricsWidth: lyricsModel.GetWidth()}
 }
 
 func (m Model) Init() tea.Cmd {
 	return tea.Batch(m.info.Init(), m.lyrics.Init())
+}
+
+func (m *Model) ToggleFocus() {
+	if m.focusedModel == List {
+		m.focusedModel = Lyrics
+		styles.LyricsStyle = styles.LyricsStyle.BorderForeground(lipgloss.Color("#e79cfe"))
+		styles.ListStyle = styles.ListStyle.BorderForeground(lipgloss.Color("#fff"))
+	} else {
+		m.focusedModel = List
+		styles.ListStyle = styles.ListStyle.BorderForeground(lipgloss.Color("#e79cfe"))
+		styles.LyricsStyle = styles.LyricsStyle.BorderForeground(lipgloss.Color("#fff"))
+	}
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -97,23 +117,30 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.p.DecreaseVolume()
 		case ">":
 			m.p.IncreaseVolume()
+
+		case "ctrl+l", "ctrl+right":
+			m.ToggleFocus()
+
+		case "ctrl+h", "ctrl+left":
+			m.ToggleFocus()
 		}
 
-	case lyrics.LyricsOkMsg:
+	// case lyrics.LyricsOkMsg:
+
+	case lyrics.LyricsWidthMsg:
 		infoHeight := lipgloss.Height(m.info.View())
-		lyricsWidth := m.lyrics.GetWidth()
-		m.list.SetSize(m.width-lyricsWidth-styles.ListStyle.GetHorizontalFrameSize(), m.height-2-infoHeight)
-		styles.ListStyle = styles.ListStyle.Width(m.width - lyricsWidth - 4)
+		m.lyricsWidth = int(msg)
+		m.list.SetSize(m.width-m.lyricsWidth-styles.ListStyle.GetHorizontalFrameSize(), m.height-2-infoHeight)
+		styles.ListStyle = styles.ListStyle.Width(m.width - m.lyricsWidth - 4)
 
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		infoHeight := lipgloss.Height(m.info.View())
-		lyricsWidth := m.lyrics.GetWidth()
-		m.list.SetSize(m.width-lyricsWidth-2, m.height-2-infoHeight)
-		styles.ListStyle = styles.ListStyle.Width(m.width - lyricsWidth - 4)
-		fmt.Println(m.list.Width())
+		m.list.SetSize(m.width-m.lyricsWidth-2, m.height-2-infoHeight)
+		styles.ListStyle = styles.ListStyle.Width(m.width - m.lyricsWidth - 4)
+		// fmt.Println(m.list.Width())
 
-		styles.LyricsStyle = styles.LyricsStyle.Height(m.height - infoHeight - 2)
+		// styles.LyricsStyle = styles.LyricsStyle.Height(m.height - infoHeight - 2)
 		// m.list.SetSize(w-2, h-2-infoHeight)
 		// styles.ListStyle = styles.ListStyle.Width(m.list.Width()).Height(m.list.Height() - infoHeight)
 	}

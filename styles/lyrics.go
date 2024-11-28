@@ -7,7 +7,7 @@ var (
 			BorderStyle(lipgloss.RoundedBorder()).
 			Width(73)
 	LyricsViewportStyle = lipgloss.NewStyle()
-				// AlignVertical(lipgloss.Center)
+	// AlignVertical(lipgloss.Center)
 	// Height(80)
 	ActiveLyricsStyle = lipgloss.NewStyle().
 				Foreground(lipgloss.Color("#ffffff")).

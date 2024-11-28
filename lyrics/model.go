@@ -144,6 +144,14 @@ func loadLyrics(song *player.Song) tea.Cmd {
 	}
 }
 
+type LyricsWidthMsg int
+
+func LyricsWidthCmd(width int) tea.Cmd {
+	return func() tea.Msg {
+		return LyricsWidthMsg(width)
+	}
+}
+
 func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
@@ -164,13 +172,13 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		longestLine := slices.MaxFunc(m.lines, func(l1, l2 string) int { return len(l1) - len(l2) })
 		longLineWidth := len(longestLine) + 2
 		m.viewport.Width = longLineWidth
-        m.viewport.Height = m.height
+		m.viewport.Height = m.height
 		m.width = longLineWidth + styles.LyricsStyle.GetHorizontalFrameSize()
 		styles.LyricsStyle = styles.LyricsStyle.Width(m.width)
 
 		m.viewport.SetContent(lipgloss.JoinVertical(lipgloss.Center, lines...))
 		m.status = Answered
-		return m, nil
+		return m, LyricsWidthCmd(m.width)
 
 	case LyricsErrMsg:
 		m.viewport.SetContent(lipgloss.JoinVertical(lipgloss.Left, msg.desc, msg.err.Error()))
@@ -185,6 +193,8 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.termHeight = msg.Height
 
 		m.height = m.termHeight - 4
+		m.viewport.Height = m.height
+		m.viewport.Width = m.width
 		styles.LyricsStyle = styles.LyricsStyle.Width(m.width)
 
 	case progress.ProgressTickMsg:
