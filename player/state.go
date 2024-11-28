@@ -52,12 +52,14 @@ func (s *State) Play(song *Song) {
 		fmt.Printf("failed to decode file: %v", err)
 	}
 
+	loop := beep.Loop(-1, streamer)
+
 	// Resample the streamer if the file sample rate isn't the one we use
 	// if format.SampleRate != s.sampleRate {
 	// 	streamer = beep.Resample(4, format.SampleRate, s.sampleRate, streamer)
 	// }
 
-	ctrl := &beep.Ctrl{Streamer: streamer, Paused: false}
+	ctrl := &beep.Ctrl{Streamer: loop, Paused: false}
 	volume := &effects.Volume{
 		Streamer: ctrl,
 		Base:     2,
@@ -197,6 +199,7 @@ func (s State) GetVolume() float64 {
 func (s State) SeekForward() {
 	if s.currentStreamer != nil {
 		speaker.Lock()
+		s.currentCtrl.Paused = true
 		position := s.GetPosition()
 		newPosition := s.sampleRate.N(position + 5*time.Second)
 		if newPosition <= s.currentStreamer.Len() {
@@ -204,6 +207,7 @@ func (s State) SeekForward() {
 		} else {
 			_ = s.currentStreamer.Seek(s.currentStreamer.Len())
 		}
+		s.currentCtrl.Paused = false
 		speaker.Unlock()
 	}
 }

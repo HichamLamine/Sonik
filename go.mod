@@ -7,6 +7,7 @@ require (
 	github.com/charmbracelet/bubbletea v1.2.3
 	github.com/charmbracelet/lipgloss v1.0.0
 	github.com/dhowden/tag v0.0.0-20240417053706-3d75831295e8
+	github.com/emirpasic/gods v1.18.1
 	github.com/gopxl/beep v1.4.1
 )
 

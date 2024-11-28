@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -11,19 +12,23 @@ import (
 
 	// "hichamlamine.github.io/sonik/player"
 	"hichamlamine.github.io/sonik/info"
+	"hichamlamine.github.io/sonik/lyrics"
 	"hichamlamine.github.io/sonik/player"
 	"hichamlamine.github.io/sonik/styles"
 	"hichamlamine.github.io/sonik/utils"
 )
 
-type model struct {
+type Model struct {
 	// state sessionState
 	// pages []page.Model
-	list list.Model
-	info info.Model
+	list   list.Model
+	info   info.Model
+	lyrics lyrics.Model
 
 	songs []player.Song
 	p     *player.State
+
+	width, height int
 }
 
 type item struct {
@@ -34,9 +39,12 @@ func (i item) Title() string       { return i.title }
 func (i item) Description() string { return i.desc }
 func (i item) FilterValue() string { return i.title }
 
-func newModel() model {
+func newModel() Model {
 	var items []list.Item
 	songs := utils.LoadSongs()
+	slices.SortFunc(songs, func(s1, s2 player.Song) int {
+		return strings.Compare(strings.ToLower(s1.Title), strings.ToLower(s2.Title))
+	})
 	for _, song := range songs {
 		items = append(items, item{title: song.Title, desc: song.Artist})
 	}
@@ -53,14 +61,16 @@ func newModel() model {
 
 	infoModel := info.New(&p)
 
-	return model{list: listModel, info: infoModel, songs: songs, p: &p}
+	lyricsModel := lyrics.NewModel()
+
+	return Model{list: listModel, info: infoModel, songs: songs, p: &p, lyrics: lyricsModel}
 }
 
-func (m model) Init() tea.Cmd {
-	return m.info.Init()
+func (m Model) Init() tea.Cmd {
+	return tea.Batch(m.info.Init(), m.lyrics.Init())
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
@@ -79,6 +89,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.list.FilterState() == list.Unfiltered {
 				song := m.songs[m.list.Index()]
 				m.p.Play(&song)
+				m.lyrics.SetPlayingSong(&song)
 			}
 		case " ":
 			m.p.TogglePause()
@@ -88,26 +99,39 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.p.IncreaseVolume()
 		}
 
-	case tea.WindowSizeMsg:
-		w, h := msg.Width, msg.Height
+	case lyrics.LyricsOkMsg:
 		infoHeight := lipgloss.Height(m.info.View())
-		m.list.SetSize(w-2, h-2-infoHeight)
-		styles.ListStyle = styles.ListStyle.Width(m.list.Width()).Height(m.list.Height() - infoHeight)
+		m.list.SetSize(m.width-m.lyrics.GetWidth()-styles.ListStyle.GetHorizontalFrameSize(), m.height-2-infoHeight)
+
+	case tea.WindowSizeMsg:
+		m.width, m.height = msg.Width, msg.Height
+		infoHeight := lipgloss.Height(m.info.View())
+		m.list.SetSize(m.width-m.lyrics.GetWidth()-2, m.height-2-infoHeight)
+		styles.ListStyle = styles.ListStyle.Width(m.width - m.lyrics.GetWidth() - 4)
+		fmt.Println(m.list.Width())
+
+		styles.LyricsStyle = styles.LyricsStyle.Height(m.height - infoHeight - 2)
+		// m.list.SetSize(w-2, h-2-infoHeight)
+		// styles.ListStyle = styles.ListStyle.Width(m.list.Width()).Height(m.list.Height() - infoHeight)
 	}
 	newListModel, listCmd := m.list.Update(msg)
 	newInfoModel, infoCmd := m.info.Update(msg)
-	cmds = append(cmds, listCmd, infoCmd)
+	newLyricsModel, lyricsCmd := m.lyrics.Update(msg)
+	cmds = append(cmds, listCmd, infoCmd, lyricsCmd)
 	m.list = newListModel
 	m.info = newInfoModel
+	m.lyrics = newLyricsModel
 	return m, tea.Batch(cmds...)
 }
 
-func (m model) View() string {
+func (m Model) View() string {
 	var s string
 	styledList := styles.ListStyle.Render(m.list.View())
+	styledLyrics := styles.LyricsStyle.Render(m.lyrics.View())
+	listLyricsSection := lipgloss.JoinHorizontal(lipgloss.Center, styledList, styledLyrics)
 	playerInfo := m.info.View()
 	// progress := m.progress.view()
-	s = lipgloss.JoinVertical(lipgloss.Left, styledList, playerInfo)
+	s = lipgloss.JoinVertical(lipgloss.Left, listLyricsSection, playerInfo)
 	return s
 }
 
@@ -117,4 +141,5 @@ func main() {
 	if _, err := p.Run(); err != nil {
 		log.Fatal(err)
 	}
+
 }
