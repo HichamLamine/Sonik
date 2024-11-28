@@ -101,13 +101,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case lyrics.LyricsOkMsg:
 		infoHeight := lipgloss.Height(m.info.View())
-		m.list.SetSize(m.width-m.lyrics.GetWidth()-styles.ListStyle.GetHorizontalFrameSize(), m.height-2-infoHeight)
+		lyricsWidth := m.lyrics.GetWidth()
+		m.list.SetSize(m.width-lyricsWidth-styles.ListStyle.GetHorizontalFrameSize(), m.height-2-infoHeight)
+		styles.ListStyle = styles.ListStyle.Width(m.width - lyricsWidth - 4)
 
 	case tea.WindowSizeMsg:
 		m.width, m.height = msg.Width, msg.Height
 		infoHeight := lipgloss.Height(m.info.View())
-		m.list.SetSize(m.width-m.lyrics.GetWidth()-2, m.height-2-infoHeight)
-		styles.ListStyle = styles.ListStyle.Width(m.width - m.lyrics.GetWidth() - 4)
+		lyricsWidth := m.lyrics.GetWidth()
+		m.list.SetSize(m.width-lyricsWidth-2, m.height-2-infoHeight)
+		styles.ListStyle = styles.ListStyle.Width(m.width - lyricsWidth - 4)
 		fmt.Println(m.list.Width())
 
 		styles.LyricsStyle = styles.LyricsStyle.Height(m.height - infoHeight - 2)

@@ -20,15 +20,16 @@ import (
 const url = "https://lrclib.net/api/"
 
 type Model struct {
-	playingSong  *player.Song
-	spinner      spinner.Model
-	viewport     viewport.Model
-	lines        []string
-	timestamps   []time.Duration
-	currentIndex int
-	progress     time.Duration
-	status       int
-	width        int
+	playingSong           *player.Song
+	spinner               spinner.Model
+	viewport              viewport.Model
+	lines                 []string
+	timestamps            []time.Duration
+	currentIndex          int
+	progress              time.Duration
+	status                int
+	width, height         int
+	termWidth, termHeight int
 }
 
 func (m Model) Init() tea.Cmd {
@@ -41,7 +42,7 @@ func NewModel() Model {
 		Width:  50,
 		Height: 20,
 	}
-	return Model{spinner: spinner.Model{Spinner: sp}, viewport: viewport, progress: time.Duration(0)}
+	return Model{spinner: spinner.Model{Spinner: sp}, viewport: viewport, progress: time.Duration(0), width: 40}
 }
 
 func (m Model) GetWidth() int { return m.width }
@@ -155,14 +156,15 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 	case LyricsOkMsg:
 		m.lines = msg.lines
 		m.timestamps = msg.timestamps
-        m.currentIndex = 0
+		m.currentIndex = 0
 		lines := slices.Clone(m.lines)
 		for i, line := range lines {
 			lines[i] = styles.InactiveLyricsStyle.Render(line)
 		}
 		longestLine := slices.MaxFunc(m.lines, func(l1, l2 string) int { return len(l1) - len(l2) })
-		longLineWidth := len(longestLine)
-        m.viewport.Width = longLineWidth
+		longLineWidth := len(longestLine) + 2
+		m.viewport.Width = longLineWidth
+        m.viewport.Height = m.height
 		m.width = longLineWidth + styles.LyricsStyle.GetHorizontalFrameSize()
 		styles.LyricsStyle = styles.LyricsStyle.Width(m.width)
 
@@ -178,8 +180,12 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 		m.status = Answered
 		return m, nil
 
-	// case tea.WindowSizeMsg:
-	// m.width =
+	case tea.WindowSizeMsg:
+		m.termWidth = msg.Width
+		m.termHeight = msg.Height
+
+		m.height = m.termHeight - 4
+		styles.LyricsStyle = styles.LyricsStyle.Width(m.width)
 
 	case progress.ProgressTickMsg:
 		m.progress = time.Duration(msg)
@@ -196,7 +202,7 @@ func (m Model) Update(msg tea.Msg) (Model, tea.Cmd) {
 				}
 
 				m.viewport.SetContent(lipgloss.JoinVertical(lipgloss.Center, lines...))
-				if m.currentIndex > 5 {
+				if m.currentIndex > m.height/2 {
 					m.viewport.LineDown(1)
 				}
 				if m.currentIndex < len(lines)-1 {
@@ -220,11 +226,11 @@ func (m Model) View() string {
 	var s string
 
 	if m.status == Answered {
-		s = m.viewport.View()
+		s = styles.LyricsViewportStyle.Render(m.viewport.View())
 	} else if m.status == Requesting {
 		s = lipgloss.JoinHorizontal(lipgloss.Center, m.spinner.View(), " Loading lyrics")
 	} else if m.status == Idle {
-		s = lipgloss.Place(71, 25, lipgloss.Center, lipgloss.Center, "No song is playing")
+		s = lipgloss.Place(m.width, m.height, lipgloss.Center, lipgloss.Center, "No song is playing")
 	}
 	return s
 }
